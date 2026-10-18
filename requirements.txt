@@ -1,0 +1,11 @@
+# 真实模型模式所需依赖（离线模式一个都不用装，缺库会自动降级并打印中文提示）
+#
+# 本机无网络，实测无法 pip install；因此代码把下面这些全部做了 try/except 保护：
+# 缺 openai  → 自动使用离线规则引擎（默认演示路径）
+# 缺 pypdf   → 只影响 PDF 解析，可改用 .docx / .txt
+# 缺 streamlit → 只影响网页版，命令行不受影响
+openai>=1.30.0        # OpenAI 兼容协议客户端（真实模型模式必需）
+python-docx>=1.1.0    # 解析 .docx 简历（系统 Python 已自带 1.2.0）
+pypdf>=4.0.0          # 解析 PDF 简历（可选）
+python-dotenv>=1.0.0  # 可选：本项目自带极简 .env 解析，不装也能读
+streamlit>=1.30.0     # 可选：网页版

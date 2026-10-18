@@ -1,0 +1,25 @@
+# 环境与密钥
+.env
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# 生成物
+*.db
+data/matcher.db
+data/uploads/
+match_report.md
+eval/last_eval.md
+*.tmp
+*.log
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

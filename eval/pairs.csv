@@ -1,0 +1,11 @@
+jd,resume,label
+data/samples/jd_ai_app.md,data/samples/resume_zhang.md,ai_zhang
+data/samples/jd_ai_app.md,data/samples/resume_li.md,ai_li
+data/samples/jd_ai_app.md,data/samples/variants/resume_zhang_lite.md,ai_zhang_lite
+data/samples/jd_ai_app.md,data/samples/variants/resume_li_backend.md,ai_li_backend
+data/samples/jd_ai_app.md,data/samples/variants/resume_li_senior.md,ai_li_senior
+data/samples/jd_data_analyst.md,data/samples/resume_zhang.md,da_zhang
+data/samples/jd_data_analyst.md,data/samples/resume_li.md,da_li
+data/samples/jd_data_analyst.md,data/samples/variants/resume_zhang_lite.md,da_zhang_lite
+data/samples/jd_data_analyst.md,data/samples/variants/resume_li_backend.md,da_li_backend
+data/samples/jd_data_analyst.md,data/samples/variants/resume_li_senior.md,da_li_senior

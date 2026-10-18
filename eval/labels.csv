@@ -1,0 +1,11 @@
+jd,resume,human_score,note
+data/samples/jd_ai_app.md,data/samples/resume_zhang.md,80,AI 岗强匹配：Python/FastAPI/SQL/Git 都能对上，缺 LangChain
+data/samples/jd_ai_app.md,data/samples/resume_li.md,30,数据分析简历投 AI 应用岗：缺 Web 框架与 RAG
+data/samples/jd_ai_app.md,data/samples/variants/resume_zhang_lite.md,28,同专业但项目太浅：只有 Python 基础与 Excel
+data/samples/jd_ai_app.md,data/samples/variants/resume_li_backend.md,65,后端简历投 AI 应用岗：工程能力够，RAG/Prompt 缺
+data/samples/jd_ai_app.md,data/samples/variants/resume_li_senior.md,20,资深数据分析简历投 AI 实习：方向不符
+data/samples/jd_data_analyst.md,data/samples/resume_zhang.md,25,AI 应用简历投数据分析岗：缺数仓/Tableau/AB
+data/samples/jd_data_analyst.md,data/samples/resume_li.md,88,数据分析强匹配：SQL/Pandas/Tableau/AB 经验齐全
+data/samples/jd_data_analyst.md,data/samples/variants/resume_zhang_lite.md,20,基础薄弱：只会 Excel 和简单 SQL
+data/samples/jd_data_analyst.md,data/samples/variants/resume_li_backend.md,22,后端简历投数据分析：缺看板与实验设计
+data/samples/jd_data_analyst.md,data/samples/variants/resume_li_senior.md,92,资深数据简历：指标治理、Spark、AB 平台全覆盖

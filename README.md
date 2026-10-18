@@ -19,7 +19,8 @@
 `numpy` / `python-docx` 有则增强、没有也能跑；因此下面 3 条命令**不需要安装任何第三方库，也不需要联网**。
 
 ```bash
-cd ai-resume-matcher   # 克隆后的项目根目录
+git clone https://github.com/QinHuai00/ai-resume-matcher.git
+cd ai-resume-matcher
 
 # 1) 分析一组：AI 应用开发实习 JD × 张沐阳简历（会打印完整报告）
 python -m app.cli analyze --jd data/samples/jd_ai_app.md --resume data/samples/resume_zhang.md --out match_report.md
@@ -75,7 +76,7 @@ python -m app.cli report --jd data/samples/jd_ai_app.md --resume data/samples/re
 
 ## 2. 接真实模型（可选，`.env` 自动切换）
 
-本次交付环境**没有配置 API Key**，所以真实模式只做了代码实现与降级验证；能联网、有 Key 的机器上按下面两步即可切换：
+本仓库开发环境**没有配置 API Key**，所以真实模式只做了代码实现与降级验证；能联网、有 Key 的机器上按下面两步即可切换：
 
 1. 安装依赖（只装需要的即可）：`pip install openai python-docx pypdf streamlit`
 2. 复制配置并填 Key：
@@ -167,7 +168,7 @@ flowchart LR
 ## 4. 目录说明
 
 ```text
-resume-matcher/
+ai-resume-matcher/
 ├─ app/
 │  ├─ config.py          # 路径、权重、Prompt 版本、.env 解析、离线判定
 │  ├─ llm.py             # 统一 chat()：重试/日志/JSON 模式；离线抛 OfflineLLMError
@@ -189,8 +190,10 @@ resume-matcher/
 │  └─ run_eval.py        # MAE / 稳定性 / 结构化成功率
 ├─ tests/                # unittest：评分纯函数、解析边界、流水线契约、稳定性
 ├─ ui/app.py             # Streamlit 网页版（未装 streamlit 时打印提示退出）
-├─ .env.example / .gitignore / requirements.txt
-└─ README.md
+├─ docs/roadmap.md       # 优化路线（V2 结构化输出 → V6 交付）
+├─ .env.example / .gitignore / .editorconfig
+├─ .github/workflows/tests.yml  # CI：无依赖跑单测
+├─ LICENSE / README.md
 ```
 
 ---

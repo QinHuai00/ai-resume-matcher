@@ -12,7 +12,7 @@
 > 当前版本已完成 V1 → V4 优化：技能别名归一、权重留一交叉验证校准、建议优先级分级、
 > 评测补 Spearman 与分档准确率。**MAE 从 6.5 降到 4.4**，详见
 > [`eval/weight_calibration.md`](eval/weight_calibration.md) 与
-> [《优化过程-实测版》](../优化过程-实测版.md)。
+> [`docs/optimization-log.md`](docs/optimization-log.md)（优化实录）。
 
 ---
 
@@ -26,24 +26,24 @@ git clone https://github.com/QinHuai00/ai-resume-matcher.git
 cd ai-resume-matcher
 
 # 1) 分析一组：AI 应用开发实习 JD × 张沐阳简历（会打印完整报告）
-python -m app.cli analyze --jd data/samples/jd_ai_app.md --resume data/samples/resume_zhang.md --out match_report.md
+python -m app.cli analyze --jd data/samples/jd_ai_app.md --resume data/samples/resume_zhang.md --no-cache --out match_report.md
 
-# 2) 跑单元测试（45 个用例，标准库 unittest）
+# 2) 跑单元测试（46 个用例，标准库 unittest）
 python -m unittest discover -s tests -v
 
-# 3) 跑评测：MAE / 稳定性 / 结构化成功率
+# 3) 跑评测：MAE / Spearman / 分档准确率 / 稳定性 / 结构化成功率
 python eval/run_eval.py
 ```
 
-第 1 条命令的真实输出（2026-10-18 实测，下同）：
+第 1 条命令的真实输出（2026-10-20 实测，下同）：
 
 ```text
 [OFFLINE] 岗位：AI 应用开发实习生（LLM 应用方向）
 候选人：张沐阳
-总分：75 / 100
-├─ 硬性要求命中  6/7 (86%)   权重 60%
+总分：79 / 100
+├─ 硬性要求命中  6/7 (86%)   权重 65%
 ├─ 技能覆盖      10/12 (83%)   权重 25%
-└─ 经历相关度    0.05           权重 15%
+└─ 经历相关度    0.05           权重 10%
 缺失技能：langchain、高并发
 未命中硬性要求：1 条
 模式：offline（未配置 SF_API_KEY（无 .env 或值为空）） ｜ 缓存：未命中 ｜ 耗时：3 ms ｜ Prompt：v1
@@ -52,10 +52,10 @@ python eval/run_eval.py
 换一份“错配”的样本，分数会明显掉下来（证明评分不是摆设）：
 
 ```bash
-# 数据分析简历投 AI 应用开发岗 → 22 分，缺失 fastapi/rag/向量检索 等
+# 数据分析简历投 AI 应用开发岗 → 23 分，缺失 fastapi/rag/向量检索 等
 python -m app.cli analyze --jd data/samples/jd_ai_app.md --resume data/samples/resume_li.md --no-cache
 
-# 数据分析强匹配 → 83 分
+# 数据分析强匹配 → 88 分
 python -m app.cli analyze --jd data/samples/jd_data_analyst.md --resume data/samples/resume_li.md --no-cache
 ```
 
@@ -74,6 +74,21 @@ python -m app.cli report --jd data/samples/jd_ai_app.md --resume data/samples/re
 
 > 路径全部以**项目根**为基准解析，因此从任意目录执行 `python -m app.cli ...` 也能找到 `data/samples`；
 > 只有 `--out` 的相对路径按“当前工作目录”算（这是命令行工具的惯例）。
+
+### 1.1 Windows 一键启动网页版（可选）
+
+仓库根目录带 `start-ui.bat`：双击即可。它优先使用项目内 `.venv\Scripts\python.exe`，没有就回退到系统 `python`；
+两者都没装 `streamlit` 时只打印一条中文安装提示，**不会闪退，也不影响命令行版**。
+
+```bat
+:: 可选：建项目内虚拟环境并安装网页依赖（一次性）
+py -m venv .venv
+.venv\Scripts\python.exe -m pip install streamlit
+
+:: 之后双击 start-ui.bat 即可，默认地址 http://127.0.0.1:8502
+```
+
+非 Windows 或想手动启动：`streamlit run ui/app.py --server.port 8502`。
 
 ---
 
@@ -191,10 +206,15 @@ ai-resume-matcher/
 ├─ eval/
 │  ├─ labels.csv         # 10 组人工标注（jd, resume, human_score）
 │  ├─ pairs.csv          # 批量清单
-│  └─ run_eval.py        # MAE / 稳定性 / 结构化成功率
+│  ├─ run_eval.py        # MAE / Spearman / 分档准确率 / 稳定性 / 结构化成功率
+│  ├─ calibrate_weights.py   # 权重 + 缩放系数网格搜索 + 留一交叉验证
+│  └─ weight_calibration.md  # 校准实验记录（最优 65/25/10 + scale 4.0）
 ├─ tests/                # unittest：评分纯函数、解析边界、流水线契约、稳定性
 ├─ ui/app.py             # Streamlit 网页版（未装 streamlit 时打印提示退出）
-├─ docs/roadmap.md       # 优化路线（V2 结构化输出 → V6 交付）
+├─ docs/
+│  ├─ roadmap.md         # 优化路线（V2 结构化输出 → V6 交付）
+│  └─ optimization-log.md    # 优化实录：V1→V4 的问题、改法、实测数字
+├─ start-ui.bat          # Windows 一键启动网页版（优先项目内 .venv，缺 streamlit 只提示）
 ├─ .env.example / .gitignore / .editorconfig
 ├─ .github/workflows/tests.yml  # CI：无依赖跑单测
 ├─ LICENSE / README.md
@@ -229,8 +249,9 @@ ai-resume-matcher/
 - 缺失技能同时进“技能覆盖”和“改写建议”，报告里可以直接照抄去改简历。
 
 **重要坦白**：经历相关度这一维在 V1 里是**最弱的一维**（实测原始值 0.004-0.085，×4 后对总分贡献 0-5 分），
-因为它只是词面重叠、没有语义。V2/V3 会把它换成 embedding 向量相似度（复用项目一的 embedding 能力），
-见 [`docs/roadmap.md`](docs/roadmap.md) 的 V2→V3。
+因为它只是词面重叠、没有语义。本轮 V1→V4 没有动它（只把权重降到 10%），更彻底的改法是换成 embedding
+向量相似度（复用项目一的 embedding 能力），见 [`docs/roadmap.md`](docs/roadmap.md) 的 V3 方案与
+[`docs/optimization-log.md`](docs/optimization-log.md) 的局限说明。
 
 ---
 
@@ -252,7 +273,7 @@ python eval/run_eval.py
 | 分档准确率（高/中/低三档） | **100%**（10/10 同档） | — |
 | 稳定性（同输入跑 3 次总分） | **[79, 79, 79]，极差 0** | < 5 |
 | 结构化成功率（Capability/ResumeProfile 通过校验） | **100%**（10/10） | 真实模式下应 ≥ 95% |
-| 单组平均耗时 | 1.2 ms（离线规则引擎） | — |
+| 单组平均耗时 | ≈1.3 ms（离线规则引擎，多次运行 1.2-1.3 ms） | — |
 
 10 组明细（系统分 vs 人工分，分档 ✓ 表示同档）：
 
@@ -296,6 +317,10 @@ python eval/run_eval.py
 ---
 
 ## 8. 下一步：从初版到进阶版
+
+> **实际落地顺序与下表计划不完全一致**：本轮已完成技能别名归一（V2）、权重 LOOCV 校准（V3）、
+> 建议优先级 + 评测指标升级（V4），过程见 [`docs/optimization-log.md`](docs/optimization-log.md)；
+> 下表是路线图原始计划，V5→V6（批量成本、体验交付）仍待做。
 
 完整的优化路线（问题 → 假设 → 改法 → 实验 → 结论）见 [`docs/roadmap.md`](docs/roadmap.md)。
 每级的初版接口/缺口如下：

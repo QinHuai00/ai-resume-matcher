@@ -8,7 +8,7 @@
 | V1 | 当前初版：规则解析 + 可解释三维评分 | 全链路 | MAE / 稳定性 / 结构化成功率 | 基线 |
 | V2 | 结构化输出稳定性：JSON 模式 + schema + 校验 + 错误回灌 + 降级 | 新增 `app/structured.py`，改 `app/jd_parser.py`、`app/resume_parser.py` | 一次通过率、修复后成功率、降级率 | 真实 LLM 输出可量化地稳 |
 | V3 | 匹配质量：技能归一化 + embedding 语义匹配 + `must_have` 判定升级 | 新增 `app/semantic.py`，改 `app/scoring.py`、`app/config.py` | MAE、人工一致性 | 漏同义表述的问题减少 |
-| V4 | 权重校准：20-50 份人工标注，网格搜索 / 坐标下降 | 新增 `eval/calibrate_weights.py`，改 `app/config.py` | MAE 前后对比、过拟合检查 | 60/25/15 从"设计值"变成"校准值" |
+| V4 | 权重校准：20-50 份人工标注，网格搜索 / 坐标下降 | 新增 `eval/calibrate_weights.py`，改 `app/config.py`、`eval/labels.csv` | MAE 前后对比、过拟合检查 | 权重从经验值变成校准值（60/25/15 → 65/25/10） |
 | V5 | 批量与成本：Semaphore 并发、缓存命中率、Prompt 版本化、容错 | `app/batch.py`、`app/store.py` | 批量耗时、缓存命中率、失败率 | 批量报告可交付 |
 | V6 | 体验与交付：进度反馈、报告下载、失败重试、演示脚本 | `ui/app.py`、`app/cli.py`、新增 `scripts/demo.py` | 演示 30 秒可完成 | 面试现场稳定演示 |
 

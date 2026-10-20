@@ -28,7 +28,7 @@ cd ai-resume-matcher
 # 1) 分析一组：AI 应用开发实习 JD × 张沐阳简历（会打印完整报告）
 python -m app.cli analyze --jd data/samples/jd_ai_app.md --resume data/samples/resume_zhang.md --no-cache --out match_report.md
 
-# 2) 跑单元测试（46 个用例，标准库 unittest）
+# 2) 跑单元测试（53 个用例，标准库 unittest）
 python -m unittest discover -s tests -v
 
 # 3) 跑评测：MAE / Spearman / 分档准确率 / 稳定性 / 结构化成功率
@@ -49,6 +49,9 @@ python eval/run_eval.py
 模式：offline（未配置 SF_API_KEY（无 .env 或值为空）） ｜ 缓存：未命中 ｜ 耗时：3 ms ｜ Prompt：v1
 ```
 
+> 上面加了 `--no-cache` 只是让示例输出固定按当前代码重算，便于对照；不加也能复现 79 分——
+> 缓存键里已含 Prompt 版本 + 评分配置指纹（权重/缩放/阈值），参数一变旧缓存自然失效，不会回放旧分。
+
 换一份“错配”的样本，分数会明显掉下来（证明评分不是摆设）：
 
 ```bash
@@ -65,7 +68,7 @@ python -m app.cli analyze --jd data/samples/jd_data_analyst.md --resume data/sam
 # 批量并发分析 eval/pairs.csv（asyncio + Semaphore，离线也能跑）
 python -m app.cli batch --pairs eval/pairs.csv --concurrency 4
 
-# 缓存与历史统计（缓存键含 PROMPT_VERSION，命中率可观察）
+# 缓存与历史统计（缓存键含 PROMPT_VERSION + 评分指纹，命中率可观察）
 python -m app.cli cache-stats
 
 # 只生成报告文件（默认 match_report.md）
@@ -122,7 +125,8 @@ Copy-Item .env.example .env
 - **日志**：每次调用记录 attempt、耗时、token usage；失败降级会写 warning，报告尾部标 `mode`；
 - **结构化输出**：`response_format={"type":"json_object"}` + Prompt 内 JSON 字段说明 + `validate_dict` 手工校验，
   校验错误**回灌给模型**重写（最多 2 次），仍失败则降级规则引擎；
-- **缓存键带版本**：`md5(PROMPT_VERSION | jd | resume)`，改 Prompt 必须改 `PROMPT_VERSION`，避免旧结果被命中。
+- **缓存键带版本**：`md5(PROMPT_VERSION | scoring_fingerprint | jd | resume)`，
+  改 Prompt 要改 `PROMPT_VERSION`；改权重/缩放/阈值由 `scoring_fingerprint()` 自动反映，旧结果不会被命中。
 
 ---
 
@@ -177,10 +181,10 @@ flowchart LR
 | **离线规则引擎 + 真实 LLM 双模式** | 没有 Key 也能完整演示与评测；配 `.env` 自动切换，失败自动降级，接口不中断 |
 | **可解释评分** | 65/25/10 三维公开权重（留一交叉验证校准得出），每个分数能手算、能追溯到具体命中的要求与技能 |
 | **技能别名归一** | `skill_coverage` 对 JD/简历技能都做 `SKILL_ALIASES` 归一，解决「k8s vs kubernetes」「大模型 vs llm」漏判 |
-| **缓存键含 Prompt 版本** | `md5(PROMPT_VERSION｜jd｜resume)`，改 Prompt 必然失效旧缓存，避免"改了没生效"的隐蔽 bug |
+| **缓存键含 Prompt 版本 + 评分配置指纹** | `md5(PROMPT_VERSION｜scoring_fingerprint()｜jd｜resume)`：改 Prompt 或改权重/缩放/阈值都会失效旧缓存，不会把旧分数当新结果回放 |
 | **结构化输出三层保障（真实模式）** | JSON 模式 + 字段 Schema + 手工校验，校验错误回灌模型重写，仍失败降级规则引擎 |
 | **并发限流批量** | `asyncio.Semaphore` + `to_thread`，单条失败不影响整批，防 429 |
-| **零第三方依赖可测** | 46 个 unittest 只依赖标准库，CI 上直接跑，不需要装包 |
+| **零第三方依赖可测** | 53 个 unittest 只依赖标准库，CI 上直接跑，不需要装包 |
 
 ---
 
@@ -189,14 +193,14 @@ flowchart LR
 ```text
 ai-resume-matcher/
 ├─ app/
-│  ├─ config.py          # 路径、权重、Prompt 版本、.env 解析、离线判定
+│  ├─ config.py          # 路径、权重、Prompt 版本、评分配置指纹、.env 解析、离线判定
 │  ├─ llm.py             # 统一 chat()：重试/日志/JSON 模式；离线抛 OfflineLLMError
 │  ├─ schemas.py         # Capability / ResumeProfile / MatchResult（dataclass + 手工校验）
 │  ├─ jd_parser.py       # JD → Capability；技能词表、年限/学历抽取
 │  ├─ resume_parser.py   # 文件 → 文本 → ResumeProfile；缺库中文提示
 │  ├─ scoring.py         # 纯函数三维评分 + 缺失技能
 │  ├─ advisor.py         # 3-5 条改写建议（LLM / 离线模板）
-│  ├─ store.py           # SQLite 缓存 + 历史；make_key 含 PROMPT_VERSION
+│  ├─ store.py           # SQLite 缓存 + 历史；make_key 含 PROMPT_VERSION + 评分指纹
 │  ├─ report.py          # Markdown 报告
 │  ├─ pipeline.py        # analyze(jd, resume) → dict（缓存命中/未命中）
 │  ├─ batch.py           # asyncio 并发批量
@@ -352,6 +356,7 @@ python eval/run_eval.py
 | `未安装 streamlit，网页版不可用` | 正常降级；离线演示用 CLI 即可，装了之后 `streamlit run ui/app.py` |
 | `解析 PDF 需要 pypdf` | 没装 pypdf；改用 `.docx`/`.txt`/`.md`，或联网后 `pip install pypdf` |
 | 改了 Prompt 但分数没变 | `PROMPT_VERSION` 没改，命中了旧缓存；改版本号或 `--no-cache` |
+| 改了权重/阈值但分数没变 | 缓存键含评分配置指纹（`config.scoring_fingerprint()`），正常应自动失效；若仍命中旧值，先 `--no-cache` 重跑，再检查 `python -m app.cli cache-stats` 的评分指纹是否已变 |
 | 分数和上次不一样 | 离线规则引擎是确定性的，真实模式受模型随机性影响；报告尾部有 `mode` 与耗时 |
 | `结果文件不存在` | 路径按项目根解析，请确认在项目根目录下执行/用示例里的相对路径 |
 

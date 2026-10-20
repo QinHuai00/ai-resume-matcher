@@ -117,12 +117,12 @@ MAE 只看数值差，看不出排序一致性。
 | 稳定性（同输入跑 3 次） | **[79, 79, 79]，极差 0** | 要求极差 < 5 |
 | 结构化成功率 | **100%（10/10）** | 离线规则引擎恒为 100% |
 | 单组平均耗时 | **≈1.3 ms** | 离线规则引擎，多次运行 1.2-1.3 ms，随机器波动 |
-| 单元测试 | **46 个全绿** | 仅依赖标准库 |
+| 单元测试 | **53 个全绿** | 仅依赖标准库（含缓存键/指纹用例） |
 
 复跑命令（在本仓库根目录执行）：
 
 ```bash
-python -m unittest discover -s tests -v   # 46 个单测
+python -m unittest discover -s tests -v   # 53 个单测
 python eval/run_eval.py                   # MAE / Spearman / 分档准确率 / 稳定性
 python eval/calibrate_weights.py          # 权重 + 缩放系数 LOOCV 网格搜索
 

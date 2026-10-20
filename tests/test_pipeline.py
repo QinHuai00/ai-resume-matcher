@@ -68,7 +68,8 @@ class AnalyzeContractTest(unittest.TestCase):
         self.assertGreaterEqual(len(advices), 3)
         self.assertLessEqual(len(advices), 5)
         for advice in advices:
-            self.assertEqual(set(advice), {"where", "problem", "rewrite"})
+            self.assertEqual(set(advice), {"where", "problem", "rewrite", "priority"})
+            self.assertIn(advice["priority"], {"urgent", "important", "suggest"})
             self.assertTrue(all(str(value).strip() for value in advice.values()))
 
 

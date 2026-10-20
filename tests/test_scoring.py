@@ -110,6 +110,14 @@ class DimensionTest(unittest.TestCase):
         coverage, missing = skill_coverage(Capability(job_title="x"), ResumeProfile())
         self.assertEqual((coverage, missing), (0.0, []))
 
+    def test_skill_alias_normalized(self) -> None:
+        """别名归一：JD 写「kubernetes」、简历写「k8s」应判为命中而非缺失。"""
+        capability = Capability(job_title="x", skills=["kubernetes", "llm"])
+        profile = ResumeProfile(skills=["k8s", "大模型"])
+        coverage, missing = skill_coverage(capability, profile)
+        self.assertAlmostEqual(coverage, 1.0)
+        self.assertEqual(missing, [])
+
     def test_exp_relevance_range(self) -> None:
         capability = make_capability()
         self.assertGreaterEqual(exp_relevance(capability, make_perfect_profile()), 0.0)
@@ -118,7 +126,7 @@ class DimensionTest(unittest.TestCase):
 
     def test_weights_sum_to_one(self) -> None:
         self.assertAlmostEqual(sum(config.WEIGHTS.values()), 1.0)
-        self.assertEqual(config.WEIGHTS, {"must": 0.60, "skill": 0.25, "exp": 0.15})
+        self.assertEqual(config.WEIGHTS, {"must": 0.65, "skill": 0.25, "exp": 0.10})
 
 
 class StabilityTest(unittest.TestCase):

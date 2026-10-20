@@ -75,6 +75,61 @@ def _stability(jd_text: str, resume_text: str, runs: int = 3) -> list[int]:
     return [analyze(jd_text, resume_text, use_cache=False)["score"]["total"] for _ in range(runs)]
 
 
+def _spearman(pairs: list[tuple[int, int]]) -> float:
+    """Spearman 秩相关系数：衡量系统分与人工分的"排序一致性"。
+
+    为什么除了 MAE 还要看它：MAE 惩罚"数值差多少"，但招聘场景更关心"谁该排前面"。
+    两份简历系统分一个 90 一个 60、人工分一个 95 一个 70，MAE 都有误差，但排序完全一致，
+    这对"筛简历"才是更有意义的指标。用秩而非原始值，也避免受"人工分整体偏高"这种
+    系统偏移的干扰。样本 < 3 或存在并列时退化为 Pearson（退化场景这里直接用秩差公式兜底）。
+    """
+    n = len(pairs)
+    if n < 2:
+        return 0.0
+
+    def _rank(values: list[int]) -> list[float]:
+        # 平均秩：并列值取平均名次
+        sorted_pairs = sorted((value, index) for index, value in enumerate(values))
+        ranks = [0.0] * n
+        index = 0
+        while index < n:
+            j = index
+            while j + 1 < n and sorted_pairs[j + 1][0] == sorted_pairs[index][0]:
+                j += 1
+            avg = (index + j) / 2 + 1
+            for k in range(index, j + 1):
+                ranks[sorted_pairs[k][1]] = avg
+            index = j + 1
+        return ranks
+
+    sys_rank = _rank([p[0] for p in pairs])
+    human_rank = _rank([p[1] for p in pairs])
+    mean_sys = (n + 1) / 2
+    mean_human = (n + 1) / 2
+    num = sum((a - mean_sys) * (b - mean_human) for a, b in zip(sys_rank, human_rank))
+    den_sys = (sum((a - mean_sys) ** 2 for a in sys_rank)) ** 0.5
+    den_human = (sum((b - mean_human) ** 2 for b in human_rank)) ** 0.5
+    if den_sys == 0 or den_human == 0:
+        return 0.0
+    return num / (den_sys * den_human)
+
+
+def _band_accuracy(pairs: list[tuple[int, int]]) -> tuple[float, list[int]]:
+    """分档准确率：把 0-100 分切三档（高 ≥70 / 中 40-69 / 低 <40），
+    系统分与人工分落在同一档才算对。招聘里"要不要进下一轮"是分档决策，比精确分更贴近真实用法。
+
+    返回 (准确率, 各样本是否分档正确)。"""
+    def _band(score: int) -> str:
+        if score >= 70:
+            return "high"
+        if score >= 40:
+            return "mid"
+        return "low"
+
+    correct = [1 if _band(sys) == _band(human) else 0 for sys, human in pairs]
+    return sum(correct) / len(correct), correct
+
+
 def run() -> dict:
     """执行评测并返回汇总 dict（同时写 eval/last_eval.md）。"""
     labels = load_labels(PROJECT_ROOT / "eval" / "labels.csv")
@@ -104,6 +159,9 @@ def run() -> dict:
 
     mae = sum(row["diff"] for row in rows) / len(rows)
     avg_elapsed = sum(row["elapsed_ms"] for row in rows) / len(rows)
+    pairs = [(row["sys"], row["human"]) for row in rows]
+    spearman = _spearman(pairs)
+    band_acc, band_correct = _band_accuracy(pairs)
 
     first = labels[0]
     stability_totals = _stability(_read_text(first["jd"]), extract_text(_resolve(first["resume"])))
@@ -115,6 +173,8 @@ def run() -> dict:
         "model": provider["model"],
         "sample_count": len(rows),
         "mae": round(mae, 2),
+        "spearman": round(spearman, 3),
+        "band_accuracy": round(band_acc, 3),
         "stability_spread": stability_spread,
         "stability_totals": stability_totals,
         "structured_success_rate": structured_ok / len(rows),
@@ -128,16 +188,23 @@ def run() -> dict:
         f"- 模式：{provider['mode']}（{provider['model']}）；Prompt 版本：{config.PROMPT_VERSION}",
         f"- 样本数：{len(rows)} 组（2 份 JD × 5 份简历，人工分来自 eval/labels.csv）",
         f"- **MAE（平均绝对误差）**：{summary['mae']} 分",
+        f"- **Spearman 秩相关**：{summary['spearman']}（越接近 1 说明系统分与人工分排序越一致）",
+        f"- **分档准确率**：{summary['band_accuracy']:.0%}（高 ≥70 / 中 40-69 / 低 <40 三档，同档算对）",
         f"- **稳定性**：同一输入跑 3 次总分 {stability_totals}，极差 {stability_spread}（要求 < 5）",
         f"- **结构化成功率**：{structured_ok}/{len(rows)} = {summary['structured_success_rate']:.0%}",
         f"- 单组平均耗时：{summary['avg_elapsed_ms']} ms",
         "",
-        "| # | JD | 简历 | 系统分 | 人工分 | 绝对误差 |",
-        "|---|----|------|--------|--------|----------|",
+        "| # | JD | 简历 | 系统分 | 人工分 | 绝对误差 | 分档 |",
+        "|---|----|------|--------|--------|----------|------|",
     ]
+    band_label = {"high": "高", "mid": "中", "low": "低"}
     for index, row in enumerate(rows, start=1):
+        sys_band = band_label["high" if row["sys"] >= 70 else "mid" if row["sys"] >= 40 else "low"]
+        human_band = band_label["high" if row["human"] >= 70 else "mid" if row["human"] >= 40 else "low"]
+        ok = "✓" if sys_band == human_band else "✗"
         lines.append(
-            f"| {index} | {row['jd']} | {row['resume']} | {row['sys']} | {row['human']} | {row['diff']} |"
+            f"| {index} | {row['jd']} | {row['resume']} | {row['sys']} | {row['human']} "
+            f"| {row['diff']} | {ok} |"
         )
     lines.extend(
         [

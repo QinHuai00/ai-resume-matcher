@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from app import config
 from app.schemas import Capability, ResumeProfile
 
 
@@ -16,6 +17,13 @@ def _mode_text(meta: dict) -> str:
     if meta.get("mode") == "offline":
         return "离线规则引擎（未调用大模型，结果为确定性规则输出）"
     return f"大模型 {meta.get('model') or ''}".strip()
+
+
+_PRIORITY_LABEL = {
+    "urgent": "【高优·先改】",
+    "important": "【重要】",
+    "suggest": "【可选】",
+}
 
 
 def to_markdown(
@@ -30,7 +38,7 @@ def to_markdown(
     must_rate = float(score_result.get("must_hit_rate") or 0.0)
     coverage = float(score_result.get("skill_coverage") or 0.0)
     relevance = float(score_result.get("exp_relevance") or 0.0)
-    weights = score_result.get("weights") or {}
+    weights = score_result.get("weights") or config.WEIGHTS
 
     lines: list[str] = [
         f"# 简历匹配报告：{capability.job_title or '未知岗位'}",
@@ -53,7 +61,7 @@ def to_markdown(
         f"| 技能覆盖 | {coverage:.0%}（{score_result.get('skill_hit_count', 0)}/{score_result.get('skill_total', 0)}）"
         f" | {weights.get('skill', 0.25):.0%} | JD 技能表与简历技能的交集 |",
         f"| 经历相关度 | {relevance:.2f}（放大后 {score_result.get('exp_relevance_scaled', 0):.2f}）"
-        f" | {weights.get('exp', 0.15):.0%} | 项目描述与 JD 用词的 Jaccard ×3 截断 |",
+        f" | {weights.get('exp', 0.15):.0%} | 项目描述与 JD 用词的 Jaccard ×{config.EXP_RELEVANCE_SCALE:.0f} 截断 |",
         "",
     ]
 
@@ -75,8 +83,9 @@ def to_markdown(
     lines.append("")
     if advices:
         for index, advice in enumerate(advices, start=1):
+            label = _PRIORITY_LABEL.get(advice.get("priority", ""), "")
             lines.append(
-                f"{index}. **{advice.get('where', '')}**：{advice.get('problem', '')}"
+                f"{index}. {label}**{advice.get('where', '')}**：{advice.get('problem', '')}"
             )
             lines.append(f"   - 建议改为：{advice.get('rewrite', '')}")
     else:
@@ -87,8 +96,9 @@ def to_markdown(
         [
             "## 说明与局限",
             "",
-            "- 匹配分 = 硬性要求命中 × 60% + 技能覆盖 × 25% + 经历相关度 × 15%，权重公开、可改、可校准。",
-            "- 技能匹配基于内置词表的关键词近似，**同义表述会漏判**（如「容器化」与 Docker、「大模型」与 LLM 已做别名归一，但词表外仍会漏）。",
+            f"- 匹配分 = 硬性要求命中 × {weights.get('must', 0.6):.0%} + 技能覆盖 × {weights.get('skill', 0.25):.0%}"
+            f" + 经历相关度 × {weights.get('exp', 0.15):.0%}，权重由留一交叉验证校准（见 eval/weight_calibration.md）。",
+            "- 技能匹配基于内置词表的关键词近似，**同义表述会漏判**（「容器化」与 Docker、「大模型」与 LLM 已做别名归一，但词表外仍会漏）。",
             "- 简历解析假设一栏式排版；两栏模板抽出来的文本可能串行，导致经历相关度偏低。",
             "- 本报告是**辅助判断**，不是招聘结论；人工标注样本量小，分数不代表客观真值。",
             "- 离线规则引擎不调用大模型，报告中的分数与建议均为确定性规则输出，不能当作真实模型效果。",

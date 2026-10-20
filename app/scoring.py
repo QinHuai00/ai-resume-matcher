@@ -84,10 +84,22 @@ def must_hit_rate(
     return (len(hit) / total if total else 0.0), hit, miss
 
 
+def _normalize_skill(skill: str) -> str:
+    """技能归一：小写、去空白、别名收敛（"k8s"→"kubernetes"、"大模型"→"llm"）。
+
+    为什么必须在这里再做一次：``capability.skills`` / ``profile.skills`` 可能来自
+    大模型（LLM 模式），模型可能输出缩写或近义词，和词表里的标准名对不上，
+    导致"其实会这个技能"被误判成缺失。归一在评分这一层做，保证不管技能从哪来
+    （词表 / LLM / 手工），进比较前都落在同一套标准名上。
+    """
+    skill = (skill or "").strip().lower()
+    return config.SKILL_ALIASES.get(skill, skill)
+
+
 def skill_coverage(capability: Capability, profile: ResumeProfile) -> tuple[float, list[str]]:
     """技能覆盖率（集合交并）+ 缺失技能列表（排序保证输出稳定）。"""
-    jd_skills = {s.lower().strip() for s in capability.skills if s and s.strip()}
-    resume_skills = {s.lower().strip() for s in profile.skills if s and s.strip()}
+    jd_skills = {_normalize_skill(s) for s in capability.skills if s and s.strip()}
+    resume_skills = {_normalize_skill(s) for s in profile.skills if s and s.strip()}
     if not jd_skills:
         return 0.0, []
     missing = sorted(jd_skills - resume_skills)

@@ -24,9 +24,12 @@ EVAL_DIR = PROJECT_ROOT / "eval"
 DB_PATH = DATA_DIR / "matcher.db"
 
 # ---------- 评分参数（可公开、可争议、可调；见 README「评分设计」） ----------
-WEIGHTS = {"must": 0.60, "skill": 0.25, "exp": 0.15}
+# V2 起：权重不再拍脑袋，由 eval/calibrate_weights.py 在 10 组人工标注上
+# 用留一交叉验证网格搜索得出（LOOCV-MAE 6.50 → 4.40）。结论：硬性要求权重应更高、
+# 经历相关度权重应更低、Jaccard 缩放应更大。样本量小，作为方向性结论，详见 eval/weight_calibration.md。
+WEIGHTS = {"must": 0.65, "skill": 0.25, "exp": 0.10}
 MUST_HIT_OVERLAP = 1 / 3      # 硬性要求：token 重叠 ≥ 1/3 视为命中（经验值，20 份样本上调出来的）
-EXP_RELEVANCE_SCALE = 3.0     # Jaccard 天然偏小，放大 3 倍再截断到 1
+EXP_RELEVANCE_SCALE = 4.0     # Jaccard 天然偏小，放大 4 倍再截断到 1（校准实验得出）
 
 # ---------- 解析与缓存参数 ----------
 MIN_TEXT_LEN = 100            # 解析出的文本短于它直接报错（多半是扫描件/加密 PDF）

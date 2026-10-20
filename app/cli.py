@@ -56,18 +56,20 @@ def _print_summary(result: dict) -> None:
     score = result["score"]
     meta = result["meta"]
 
+    # 权重一律读评分结果里的值，不在展示层硬编码——否则校准过的权重会在摘要里显示成旧值。
+    weights = score.get("weights") or config.WEIGHTS
     print(f"{_mode_tag()} 岗位：{capability['job_title']}")
     print(f"候选人：{result['profile'].get('name') or '未识别'}")
     print(f"总分：{score['total']} / 100")
     print(
         f"├─ 硬性要求命中  {score['must_hit_count']}/{score['must_total']}"
-        f" ({score['must_hit_rate']:.0%})   权重 60%"
+        f" ({score['must_hit_rate']:.0%})   权重 {weights['must']:.0%}"
     )
     print(
         f"├─ 技能覆盖      {score['skill_hit_count']}/{score['skill_total']}"
-        f" ({score['skill_coverage']:.0%})   权重 25%"
+        f" ({score['skill_coverage']:.0%})   权重 {weights['skill']:.0%}"
     )
-    print(f"└─ 经历相关度    {score['exp_relevance']:.2f}           权重 15%")
+    print(f"└─ 经历相关度    {score['exp_relevance']:.2f}           权重 {weights['exp']:.0%}")
     if score["missing_skills"]:
         print(f"缺失技能：{'、'.join(score['missing_skills'])}")
     if score["must_miss"]:

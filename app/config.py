@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
 from pathlib import Path
@@ -30,6 +32,31 @@ DB_PATH = DATA_DIR / "matcher.db"
 WEIGHTS = {"must": 0.65, "skill": 0.25, "exp": 0.10}
 MUST_HIT_OVERLAP = 1 / 3      # 硬性要求：token 重叠 ≥ 1/3 视为命中（经验值，20 份样本上调出来的）
 EXP_RELEVANCE_SCALE = 4.0     # Jaccard 天然偏小，放大 4 倍再截断到 1（校准实验得出）
+
+# 评分配置指纹要进缓存键：评分参数（权重/缩放/阈值）一变，旧缓存必须自然失效。
+# SCORING_VERSION 是人工兜底：将来改动评分**公式**（参数没变但行为变了）时手动 +1 强制失效。
+SCORING_VERSION = "v1"
+
+
+def scoring_fingerprint() -> str:
+    """把影响分数的常量稳定序列化后取 md5 前 12 位。
+
+    为什么需要它：缓存键里只放 PROMPT_VERSION 时，改了 ``WEIGHTS`` /
+    ``EXP_RELEVANCE_SCALE`` / ``MUST_HIT_OVERLAP`` 但 Prompt 没改，同一份 JD+简历
+    仍会命中旧缓存，把**旧分数**当新结果返回（"我明明调了权重，怎么分数没变"）。
+    这里每次调用都重新读模块级常量，所以运行时改动也会反映到指纹上（测试可验证）。
+
+    稳定性：``sort_keys`` + 固定分隔符 + 统一 float 转换，保证同配置在任何进程、
+    任何机器上得到同一个指纹；人工版本号也放进 payload，便于强制失效。
+    """
+    payload = {
+        "scoring_version": SCORING_VERSION,
+        "weights": {key: float(value) for key, value in sorted(WEIGHTS.items())},
+        "exp_relevance_scale": float(EXP_RELEVANCE_SCALE),
+        "must_hit_overlap": float(MUST_HIT_OVERLAP),
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.md5(raw.encode("utf-8")).hexdigest()[:12]
 
 # ---------- 解析与缓存参数 ----------
 MIN_TEXT_LEN = 100            # 解析出的文本短于它直接报错（多半是扫描件/加密 PDF）

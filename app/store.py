@@ -1,12 +1,14 @@
-"""SQLite 缓存 + 历史：用内容哈希当主键，键里带 PROMPT_VERSION。
+"""SQLite 缓存 + 历史：用内容哈希当主键，键里带 PROMPT_VERSION 与评分配置指纹。
 
 为什么用 SQLite 而不是内存字典：缓存要跨进程复用（CLI 跑一次、Streamlit 再跑一次
 应该命中同一份结果），也要能在演示时用 ``cache-stats`` 展示命中行为。
 为什么用参数化 SQL：拼接 SQL 是注入漏洞，哪怕本地项目也不该养成习惯。
 
-缓存键 = ``md5(PROMPT_VERSION | jd_text | resume_text)``。
-**版本号必须进键**：改了 Prompt / 评分逻辑但键不变，旧结果会被当成新结果返回——
-这是最隐蔽的一类 bug（"我明明改了 Prompt，怎么分数没变"），面试里讲这个细节很加分。
+缓存键 = ``md5(PROMPT_VERSION | scoring_fingerprint | jd_text | resume_text)``。
+**版本号必须进键**：只带 Prompt 版本不够——改了 Prompt / 评分权重 / 缩放 / 阈值但键不变，
+旧结果会被当成新结果返回（"我明明改了权重，怎么分数没变"）。
+``scoring_fingerprint()`` 覆盖权重、缩放、阈值等评分参数，``PROMPT_VERSION`` 覆盖 Prompt，
+两者任一变化都让旧缓存自然 miss；这也是面试里能讲清楚的缓存失效设计。
 """
 
 from __future__ import annotations
@@ -44,8 +46,14 @@ def _connect() -> sqlite3.Connection:
 
 
 def make_key(jd_text: str, resume_text: str) -> str:
-    """生成缓存键：内容哈希 + Prompt 版本。"""
-    raw = f"{config.PROMPT_VERSION}|{jd_text}|{resume_text}".encode("utf-8")
+    """生成缓存键：内容哈希 + Prompt 版本 + 评分配置指纹。
+
+    指纹每次调用时现算，所以改完 ``config.WEIGHTS`` / 缩放 / 阈值再跑，
+    键会变、旧缓存不会命中——不需要手工清库。
+    """
+    raw = (
+        f"{config.PROMPT_VERSION}|{config.scoring_fingerprint()}|{jd_text}|{resume_text}"
+    ).encode("utf-8")
     return hashlib.md5(raw).hexdigest()
 
 
@@ -135,6 +143,7 @@ def stats() -> dict:
         "history_entries": int(history_count),
         "cache_hit_rate": round(hit_rate, 3),
         "prompt_version": config.PROMPT_VERSION,
+        "scoring_fingerprint": config.scoring_fingerprint(),
     }
 
 

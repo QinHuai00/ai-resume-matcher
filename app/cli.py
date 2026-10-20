@@ -132,7 +132,8 @@ def cmd_cache_stats(args: argparse.Namespace) -> int:  # noqa: ARG001 —— arg
     print(f"{_mode_tag()} 缓存统计")
     print(f"数据库：{stats['db_path']}")
     print(f"缓存条目：{stats['cache_entries']} ｜ 历史记录：{stats['history_entries']} ｜ 缓存命中率：{stats['cache_hit_rate']:.0%}")
-    print(f"Prompt 版本：{stats['prompt_version']} ｜ 当前 provider：{info['model']}（{info['reason']}）")
+    print(f"Prompt 版本：{stats['prompt_version']} ｜ 评分指纹：{stats['scoring_fingerprint']}")
+    print(f"当前 provider：{info['model']}（{info['reason']}）")
     records = store.history(limit=5)
     if records:
         print("\n最近 5 次分析：")

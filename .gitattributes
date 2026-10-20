@@ -1,5 +1,9 @@
 * text=auto eol=lf
 
+# Windows 批处理必须 CRLF，否则部分 cmd 解析 goto/label 会出问题
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 *.png binary
 *.jpg binary
 *.gif binary
